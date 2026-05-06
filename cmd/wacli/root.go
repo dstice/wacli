@@ -16,7 +16,7 @@ import (
 	"github.com/steipete/wacli/internal/out"
 )
 
-var version = "0.7.1"
+var version = "0.8.0"
 
 const docsURL = "https://wacli.sh"
 
