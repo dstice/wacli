@@ -26,6 +26,7 @@ wacli contacts tags rm --jid JID --tag TAG
 - Imported system names are local wacli metadata. They do not edit WhatsApp contacts or macOS Contacts.
 - Display precedence is local alias, imported system name, then WhatsApp names.
 - Use `import-system --dry-run` before writing. Use `import-system --clear` to remove imported system names.
+- See [contacts import-system](contacts-import-system.md) for the full import workflow, JSON shape, file format, and verification steps.
 - Tags are local grouping metadata for scripts and future workflows.
 
 ## Examples
