@@ -15,6 +15,7 @@ Read when: you need the user-facing command map, global flags, store model, or l
 - Write commands acquire the store lock; use `--lock-wait DURATION` to wait.
 - Use `--read-only` or `WACLI_READONLY=1` to reject commands that write WhatsApp or local state.
 - Use `sync --max-messages`, `sync --max-db-size`, `WACLI_SYNC_MAX_MESSAGES`, or `WACLI_SYNC_MAX_DB_SIZE` to bound local history growth.
+- Use `store cleanup`, `chats cleanup`, and `groups prune` to preview and remove stale local rows after sync has already stored them.
 - Authenticated startup resolves historical `@lid` chat/message rows to phone-number JIDs when the WhatsApp session store has the mapping.
 - Companion tools should prefer `--json`, `--events`, webhooks, or read-only access to `wacli.db`; see [companion integrations](integrations.md).
 
@@ -28,6 +29,7 @@ Read when: you need the user-facing command map, global flags, store model, or l
 - [contacts](contacts.md) - search contacts and manage local aliases/tags.
 - [chats](chats.md) - list, show, filter, and manage known chat state.
 - [groups](groups.md) - refresh, inspect, rename, leave, join, invite, and manage participants.
+- [store](store.md) - inspect local store stats and prune stale local rows.
 - [channels](channels.md) - list, inspect, join, leave, and send to WhatsApp Channels.
 - [history](history.md) - inspect archive coverage and request older per-chat history from the primary device.
 - [presence](presence.md) - send typing/paused indicators.

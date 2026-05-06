@@ -36,6 +36,7 @@
 - Send: add `send voice` and `send file --ptt` for OGG/Opus WhatsApp voice notes. (#40, #41 — thanks @ricardopolo and @emre6943)
 - Send: accept common phone-number formatting in recipient flags while still storing digits-only WhatsApp JIDs. (#130 — thanks @fahmidme and @ImLukeF)
 - Send: resolve `send text/file --to` against local contacts, groups, and chats, with `--pick` for non-interactive disambiguation. (#122 — thanks @AndroidPoet)
+- Store: add local-only `store stats`, `store cleanup`, `chats cleanup`, and `groups prune` commands with dry-run previews and confirmation gates. (#210, #211 — thanks @thedavidweng)
 
 ### Security
 

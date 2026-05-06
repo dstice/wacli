@@ -28,6 +28,7 @@ Full docs site: <https://wacli.sh>.
 - [Contacts](docs/contacts.md): `contacts search/show/refresh`, aliases, tags.
 - [Chats](docs/chats.md): `chats list/show`, archive, pin, mute, mark read.
 - [Groups](docs/groups.md): group list, refresh, info, rename, leave, participants, invites, join.
+- [Store](docs/store.md): local store stats and cleanup commands.
 - [Channels](docs/channels.md): `channels list/info/join/leave`, plus sending to channel JIDs.
 - [History](docs/history.md): `history coverage`, `history fill --dry-run`, `history backfill`.
 - [Presence](docs/presence.md): `presence typing/paused`.
@@ -46,7 +47,7 @@ Full docs site: <https://wacli.sh>.
 - **Message tools**: list/search/show/context with chat, sender, direction, time, order, and media-type filters.
 - **Sending**: send text, mentions, quoted replies, stickers, and image/video/audio/document files with captions, MIME override, and custom display filenames. Sends keep a short retry-receipt grace window, and rapid repeated sends warn on stderr.
 - **Media**: download synced message media on demand, or download in the background during auth/sync; send-file uploads and downloads are capped at 100 MiB.
-- **Contacts/chats/groups/channels**: search/show contacts, local aliases/tags, list/show/filter chats, archive/pin/mute/mark-read chats, refresh/list/info/rename groups, manage participants, invite links, join, leave, and manage WhatsApp Channels.
+- **Contacts/chats/groups/store/channels**: search/show contacts, local aliases/tags, list/show/filter chats, archive/pin/mute/mark-read chats, refresh/list/info/rename/prune groups, inspect/prune the local store, manage participants, invite links, join, leave, and manage WhatsApp Channels.
 - **Presence**: send typing/paused indicators.
 - **Profile**: set the authenticated account profile picture from JPEG or PNG input.
 - **Diagnostics + safety**: `doctor`, read-only mode, store locks with lock-owner reporting, lock waiting, owner-only database permissions, panic recovery, reconnect bounds, and bounded media queue backpressure.
@@ -159,6 +160,11 @@ pnpm wacli send react --to 1234567890 --id <message-id>
 pnpm wacli groups list
 pnpm wacli groups rename --jid 123456789@g.us --name "New name"
 
+# Preview local cleanup before deleting stale local rows
+pnpm wacli store stats
+pnpm wacli groups prune --dry-run
+pnpm wacli store cleanup --days 365 --dry-run
+
 # List/join channels and send to a channel JID
 pnpm wacli channels list
 pnpm wacli channels join --invite "https://whatsapp.com/channel/AbCdEfGhIjK"
@@ -212,6 +218,7 @@ Full command docs live under [docs/overview.md](docs/overview.md). Quick referen
 - `wacli chats mute --chat CHAT [--duration DURATION] [--pick N]`
 - `wacli chats unmute --chat CHAT [--pick N]`
 - `wacli chats mark-read|mark-unread --chat CHAT [--pick N]`
+- `wacli chats cleanup [--days N] [--jid JID] [--dry-run] [--confirm]`
 - `wacli groups list [--query TEXT] [--limit N]`
 - `wacli groups refresh`
 - `wacli groups info --jid GROUP_JID`
@@ -220,6 +227,9 @@ Full command docs live under [docs/overview.md](docs/overview.md). Quick referen
 - `wacli groups participants add|remove|promote|demote --jid GROUP_JID --user PHONE_OR_JID`
 - `wacli groups invite link get|revoke --jid GROUP_JID`
 - `wacli groups join --code INVITE_CODE`
+- `wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [--confirm]`
+- `wacli store stats`
+- `wacli store cleanup [--days N] [--dry-run] [--confirm]`
 - `wacli channels list`
 - `wacli channels info --jid CHANNEL_JID`
 - `wacli channels join --invite LINK_OR_CODE`
