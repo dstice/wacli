@@ -2,7 +2,7 @@
 
 Read when: inspecting local SQLite size/counts or pruning old local chat/group rows.
 
-`wacli store` manages the local `wacli.db` mirror. Cleanup commands only delete local wacli cache/history rows; they do not delete WhatsApp chats, leave groups, or remove messages from WhatsApp servers.
+`wacli store` manages the selected account's local `wacli.db` mirror. Cleanup commands only delete local wacli cache/history rows; they do not delete WhatsApp chats, leave groups, or remove messages from WhatsApp servers.
 
 ## Commands
 
@@ -29,6 +29,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - Destructive cleanup commands require confirmation unless `--confirm` is passed.
 - Use `--dry-run` first; it lists what would be deleted without changing the local store.
 - Use `--read-only` or `WACLI_READONLY=1` to make cleanup commands fail before opening the store for writes.
+- Use `--account NAME` to target a named account store. Use `--store DIR` for manual stores or migration debugging; it cannot be combined with `--account`.
 
 ## Examples
 

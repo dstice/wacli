@@ -66,7 +66,7 @@ More recipes — replies, mentions, stickers, voice, reactions, channels, histor
 
 | Area | Pages |
 | --- | --- |
-| **Setup** | [overview](docs/overview.md) · [auth](docs/auth.md) · [sync](docs/sync.md) · [doctor](docs/doctor.md) |
+| **Setup** | [overview](docs/overview.md) · [auth](docs/auth.md) · [accounts](docs/accounts.md) · [sync](docs/sync.md) · [doctor](docs/doctor.md) |
 | **Messaging** | [messages](docs/messages.md) · [send](docs/send.md) · [media](docs/media.md) · [presence](docs/presence.md) |
 | **Address book** | [contacts](docs/contacts.md) · [chats](docs/chats.md) · [groups](docs/groups.md) · [channels](docs/channels.md) |
 | **History** | [history coverage / fill / backfill](docs/history.md) |
@@ -75,9 +75,9 @@ More recipes — replies, mentions, stickers, voice, reactions, channels, histor
 
 ## Configuration
 
-Default store: `~/.local/state/wacli` on Linux, `~/.wacli` elsewhere. Existing `~/.wacli` directories on Linux keep working.
+Default store: `~/.local/state/wacli` on Linux, `~/.wacli` elsewhere. Existing `~/.wacli` directories on Linux keep working. Use `wacli accounts add NAME` and `--account NAME` for first-class multi-account stores.
 
-**Global flags:** `--store DIR`, `--json`, `--events`, `--full`, `--timeout DUR`, `--lock-wait DUR`, `--read-only`.
+**Global flags:** `--store DIR`, `--account NAME`, `--json`, `--events`, `--full`, `--timeout DUR`, `--lock-wait DUR`, `--read-only`.
 
 **Environment overrides:**
 

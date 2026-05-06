@@ -2,7 +2,7 @@
 
 Read when: pairing a store, checking auth state, logging out, or choosing QR vs phone pairing.
 
-`wacli auth` connects interactively and bootstraps sync after successful pairing. `wacli sync` never shows a QR code, so use `auth` first for a new store.
+`wacli auth` connects interactively and bootstraps sync after successful pairing. `wacli sync` never shows a QR code, so use `auth` first for a new store or named account.
 
 ## Commands
 
@@ -10,6 +10,7 @@ Read when: pairing a store, checking auth state, logging out, or choosing QR vs 
 wacli auth [--follow] [--idle-exit 30s] [--download-media] [--qr-format terminal|text] [--phone PHONE] [--events]
 wacli auth status
 wacli auth logout
+wacli --account work auth status
 ```
 
 ## Notes
@@ -23,6 +24,7 @@ wacli auth logout
 - `--events` emits NDJSON lifecycle events on stderr, including raw QR and phone-pairing codes for external renderers.
 - `auth status` reports whether the local store is authenticated.
 - `auth logout` invalidates the linked-device session and requires writable mode.
+- For multiple accounts, prefer `wacli accounts add NAME`; it creates an isolated account store and runs the same auth/bootstrap flow.
 
 ## Examples
 

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/wacli/internal/config"
 	"github.com/steipete/wacli/internal/lock"
 	"github.com/steipete/wacli/internal/out"
 	"github.com/steipete/wacli/internal/store"
@@ -116,11 +115,10 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
-			storeDir := flags.storeDir
-			if storeDir == "" {
-				storeDir = config.DefaultStoreDir()
+			storeDir, err := resolveStoreDir(flags)
+			if err != nil {
+				return err
 			}
-			storeDir, _ = filepath.Abs(storeDir)
 
 			var lockHeld bool
 			var lockInfo string

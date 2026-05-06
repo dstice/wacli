@@ -2,7 +2,7 @@
 
 Read when: you need the user-facing command map, global flags, store model, or links to command-specific docs.
 
-`wacli` is a WhatsApp CLI built on `whatsmeow`. It pairs as a linked WhatsApp Web device, stores message metadata locally, supports offline search, and exposes send/media/group/contact workflows for scripts and humans.
+`wacli` is a WhatsApp CLI built on `whatsmeow`. It pairs as a linked WhatsApp Web device, stores message metadata locally, supports offline search, and exposes send/media/group/contact workflows for scripts and humans. Named accounts let multiple WhatsApp identities use isolated stores via `--account`.
 
 ## Store and output
 
@@ -22,6 +22,7 @@ Read when: you need the user-facing command map, global flags, store model, or l
 ## Command pages
 
 - [auth](auth.md) - pair, inspect auth status, logout.
+- [accounts](accounts.md) - create and select named account stores.
 - [sync](sync.md) - sync messages, contacts, groups, channels, and optional media.
 - [messages](messages.md) - list, search, show, and contextualize stored messages.
 - [send](send.md) - send text, files, stickers, replies, and reactions.

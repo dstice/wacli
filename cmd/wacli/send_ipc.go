@@ -65,7 +65,11 @@ func sendDelegateSocketPath(storeDir string) string {
 func delegateSend(ctx context.Context, flags *rootFlags, req sendDelegateRequest) (sendDelegateResponse, error) {
 	req.Version = sendDelegateVersion
 	req.TimeoutMS = durationMillis(flags.timeout)
-	path := sendDelegateSocketPath(resolveStoreDir(flags))
+	storeDir, err := resolveStoreDir(flags)
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	path := sendDelegateSocketPath(storeDir)
 
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "unix", path)

@@ -16,69 +16,27 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
+type authOptions struct {
+	follow        bool
+	idleExit      time.Duration
+	downloadMedia bool
+	qrFormat      string
+	phone         string
+}
+
+type validatedAuthOptions struct {
+	qrFormat  string
+	pairPhone string
+}
+
 func newAuthCmd(flags *rootFlags) *cobra.Command {
-	var follow bool
-	var idleExit time.Duration
-	var downloadMedia bool
-	var qrFormat string
-	var phone string
+	opts := authOptions{idleExit: 30 * time.Second, qrFormat: "terminal"}
 
 	cmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Authenticate with WhatsApp (QR) and bootstrap sync",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := flags.requireWritable(); err != nil {
-				return err
-			}
-			qrFormat, err := normalizeAuthQRFormat(qrFormat)
-			if err != nil {
-				return err
-			}
-			if flags.asJSON && qrFormat == "text" {
-				return fmt.Errorf("--qr-format=text cannot be combined with --json because both write to stdout")
-			}
-			pairPhone, err := normalizePairPhone(phone)
-			if err != nil {
-				return err
-			}
-			maxMessages, maxDBSize, err := resolveSyncStorageLimits(syncStorageLimitFlags{})
-			if err != nil {
-				return err
-			}
-			ctx, stop := signalContextWithEvents(out.NewEventWriter(os.Stderr, flags.events))
-			defer stop()
-
-			a, lk, err := newApp(ctx, flags, true, true)
-			if err != nil {
-				return err
-			}
-			defer closeApp(a, lk)
-
-			mode := appPkg.SyncModeBootstrap
-			if follow {
-				mode = appPkg.SyncModeFollow
-			}
-
-			if a.Events().Enabled() {
-				_ = a.Events().Emit("auth_starting", nil)
-			} else {
-				fmt.Fprintln(os.Stderr, "Starting authentication…")
-			}
-			res, err := a.Sync(ctx, appPkg.SyncOptions{
-				Mode:            mode,
-				AllowQR:         true,
-				DownloadMedia:   downloadMedia,
-				RefreshContacts: true,
-				RefreshGroups:   true,
-				RefreshChannels: true,
-				IdleExit:        idleExit,
-				OnQRCode:        authQRWriter(qrFormat, os.Stdout, os.Stderr, a.Events()),
-				PairPhoneNumber: pairPhone,
-				OnPairCode:      authPairCodeWriter(pairPhone, os.Stderr, a.Events()),
-				MaxMessages:     maxMessages,
-				MaxDBSizeBytes:  maxDBSize,
-				WarnNoLimits:    true,
-			})
+			res, err := runAuth(flags, opts)
 			if err != nil {
 				return err
 			}
@@ -95,16 +53,83 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&follow, "follow", false, "keep syncing after auth")
-	cmd.Flags().DurationVar(&idleExit, "idle-exit", 30*time.Second, "exit after being idle (bootstrap/once modes)")
-	cmd.Flags().BoolVar(&downloadMedia, "download-media", false, "download media in the background during sync")
-	cmd.Flags().StringVar(&qrFormat, "qr-format", "terminal", "QR output format: terminal or text")
-	cmd.Flags().StringVar(&phone, "phone", "", "pair by phone number instead of QR code")
+	addAuthFlags(cmd, &opts)
 
 	cmd.AddCommand(newAuthStatusCmd(flags))
 	cmd.AddCommand(newAuthLogoutCmd(flags))
 
 	return cmd
+}
+
+func addAuthFlags(cmd *cobra.Command, opts *authOptions) {
+	cmd.Flags().BoolVar(&opts.follow, "follow", false, "keep syncing after auth")
+	cmd.Flags().DurationVar(&opts.idleExit, "idle-exit", 30*time.Second, "exit after being idle (bootstrap/once modes)")
+	cmd.Flags().BoolVar(&opts.downloadMedia, "download-media", false, "download media in the background during sync")
+	cmd.Flags().StringVar(&opts.qrFormat, "qr-format", "terminal", "QR output format: terminal or text")
+	cmd.Flags().StringVar(&opts.phone, "phone", "", "pair by phone number instead of QR code")
+}
+
+func runAuth(flags *rootFlags, opts authOptions) (appPkg.SyncResult, error) {
+	if err := flags.requireWritable(); err != nil {
+		return appPkg.SyncResult{}, err
+	}
+	validated, err := validateAuthOptions(flags, opts)
+	if err != nil {
+		return appPkg.SyncResult{}, err
+	}
+	maxMessages, maxDBSize, err := resolveSyncStorageLimits(syncStorageLimitFlags{})
+	if err != nil {
+		return appPkg.SyncResult{}, err
+	}
+	ctx, stop := signalContextWithEvents(out.NewEventWriter(os.Stderr, flags.events))
+	defer stop()
+
+	a, lk, err := newApp(ctx, flags, true, true)
+	if err != nil {
+		return appPkg.SyncResult{}, err
+	}
+	defer closeApp(a, lk)
+
+	mode := appPkg.SyncModeBootstrap
+	if opts.follow {
+		mode = appPkg.SyncModeFollow
+	}
+
+	if a.Events().Enabled() {
+		_ = a.Events().Emit("auth_starting", nil)
+	} else {
+		fmt.Fprintln(os.Stderr, "Starting authentication…")
+	}
+	return a.Sync(ctx, appPkg.SyncOptions{
+		Mode:            mode,
+		AllowQR:         true,
+		DownloadMedia:   opts.downloadMedia,
+		RefreshContacts: true,
+		RefreshGroups:   true,
+		RefreshChannels: true,
+		IdleExit:        opts.idleExit,
+		OnQRCode:        authQRWriter(validated.qrFormat, os.Stdout, os.Stderr, a.Events()),
+		PairPhoneNumber: validated.pairPhone,
+		OnPairCode:      authPairCodeWriter(validated.pairPhone, os.Stderr, a.Events()),
+		MaxMessages:     maxMessages,
+		MaxDBSizeBytes:  maxDBSize,
+		WarnNoLimits:    true,
+	})
+}
+
+func validateAuthOptions(flags *rootFlags, opts authOptions) (validatedAuthOptions, error) {
+	qrFormat, err := normalizeAuthQRFormat(opts.qrFormat)
+	if err != nil {
+		return validatedAuthOptions{}, err
+	}
+	if flags.asJSON && qrFormat == "text" {
+		return validatedAuthOptions{}, fmt.Errorf("--qr-format=text cannot be combined with --json because both write to stdout")
+	}
+	pairPhone, err := normalizePairPhone(opts.phone)
+	if err != nil {
+		return validatedAuthOptions{}, err
+	}
+	return validatedAuthOptions{qrFormat: qrFormat, pairPhone: pairPhone}, nil
 }
 
 func normalizePairPhone(phone string) (string, error) {

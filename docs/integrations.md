@@ -20,7 +20,7 @@ The default store is:
 - Linux: `~/.local/state/wacli`, with legacy `~/.wacli` reused when present.
 - macOS and other platforms: `~/.wacli`.
 
-Override with `--store DIR` or `WACLI_STORE_DIR`.
+Override with `--store DIR` or `WACLI_STORE_DIR`. Named accounts live in `config.yaml` and resolve with `--account NAME`; each account points at a normal isolated store directory.
 
 The store contains two SQLite databases:
 
@@ -28,6 +28,8 @@ The store contains two SQLite databases:
 - `wacli.db`: owned by `wacli`; contains chats, contacts, groups, messages, media metadata, and local state.
 
 Companion tools should not read or write `session.db` unless they are explicitly working on WhatsApp session internals. Never write to `wacli.db` from a companion tool.
+
+For multi-account tools, iterate configured accounts explicitly and annotate derived rows with the account name in the companion tool's own database. Do not merge account data into `wacli.db`.
 
 ## Read-only SQLite
 

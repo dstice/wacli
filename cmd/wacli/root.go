@@ -22,6 +22,7 @@ const docsURL = "https://wacli.sh"
 
 type rootFlags struct {
 	storeDir   string
+	account    string
 	asJSON     bool
 	fullOutput bool
 	events     bool
@@ -44,6 +45,7 @@ func execute(args []string) error {
 	rootCmd.SetVersionTemplate("wacli {{.Version}}\n")
 
 	rootCmd.PersistentFlags().StringVar(&flags.storeDir, "store", "", "store directory (default: $WACLI_STORE_DIR, XDG state dir on Linux, or ~/.wacli)")
+	rootCmd.PersistentFlags().StringVar(&flags.account, "account", "", "named account from config.yaml")
 	rootCmd.PersistentFlags().BoolVar(&flags.asJSON, "json", false, "output JSON instead of human-readable text")
 	rootCmd.PersistentFlags().BoolVar(&flags.fullOutput, "full", false, "disable truncation in table output")
 	rootCmd.PersistentFlags().BoolVar(&flags.events, "events", false, "emit machine-readable NDJSON lifecycle events on stderr")
@@ -52,6 +54,7 @@ func execute(args []string) error {
 	rootCmd.PersistentFlags().BoolVar(&flags.readOnly, "read-only", false, "reject commands that intentionally write WhatsApp or the local store (or set WACLI_READONLY=1)")
 
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newAccountsCmd(&flags))
 	rootCmd.AddCommand(newDoctorCmd(&flags))
 	rootCmd.AddCommand(newAuthCmd(&flags))
 	rootCmd.AddCommand(newSyncCmd(&flags))
@@ -88,11 +91,13 @@ func writeRootError(flags rootFlags, err error) {
 }
 
 func newApp(ctx context.Context, flags *rootFlags, needLock bool, allowUnauthed bool) (*app.App, *lock.Lock, error) {
-	storeDir := resolveStoreDir(flags)
+	storeDir, err := resolveStoreDir(flags)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var lk *lock.Lock
 	if needLock {
-		var err error
 		lk, err = lock.AcquireWithTimeout(ctx, storeDir, flags.lockWait)
 		if err != nil {
 			return nil, nil, err
@@ -116,16 +121,43 @@ func newApp(ctx context.Context, flags *rootFlags, needLock bool, allowUnauthed 
 	return a, lk, nil
 }
 
-func resolveStoreDir(flags *rootFlags) string {
+func resolveStoreDir(flags *rootFlags) (string, error) {
 	storeDir := ""
+	account := ""
 	if flags != nil {
 		storeDir = flags.storeDir
+		account = strings.TrimSpace(flags.account)
 	}
-	if storeDir == "" {
+	if storeDir != "" && account != "" {
+		return "", fmt.Errorf("--store and --account cannot be combined")
+	}
+	switch {
+	case storeDir != "":
+	case account != "":
+		resolved, _, err := config.ResolveAccountStore(config.DefaultConfigPath(), account)
+		if err != nil {
+			return "", err
+		}
+		storeDir = resolved
+	case os.Getenv(config.EnvStoreDir) != "":
 		storeDir = config.DefaultStoreDir()
+	default:
+		cfg, found, err := config.LoadAccountsConfigIfExists(config.DefaultConfigPath())
+		if err != nil {
+			return "", err
+		}
+		if found && strings.TrimSpace(cfg.DefaultAccount) != "" {
+			resolved, _, err := config.ResolveAccountStore(config.DefaultConfigPath(), cfg.DefaultAccount)
+			if err != nil {
+				return "", err
+			}
+			storeDir = resolved
+		} else {
+			storeDir = config.DefaultStoreDir()
+		}
 	}
 	storeDir, _ = filepath.Abs(storeDir)
-	return storeDir
+	return storeDir, nil
 }
 
 func (f *rootFlags) isReadOnly() bool {

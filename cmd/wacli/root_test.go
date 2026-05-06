@@ -6,8 +6,11 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/steipete/wacli/internal/config"
 )
 
 func captureRootStderr(t *testing.T, fn func()) string {
@@ -92,4 +95,65 @@ func TestRootFlagsReadOnlyEnv(t *testing.T) {
 	if !(&rootFlags{}).isReadOnly() {
 		t.Fatal("isReadOnly = false, want true")
 	}
+}
+
+func TestResolveStoreDirAccount(t *testing.T) {
+	isolateAccountConfigHome(t)
+	cfgPath := config.DefaultConfigPath()
+	cfg := &config.AccountsConfig{
+		Accounts: map[string]config.AccountEntry{
+			"work": {Store: "accounts/work"},
+		},
+	}
+	if err := config.SaveAccountsConfig(cfgPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveStoreDir(&rootFlags{account: "work"})
+	if err != nil {
+		t.Fatalf("resolveStoreDir: %v", err)
+	}
+	want := filepath.Join(filepath.Dir(cfgPath), "accounts", "work")
+	if got != want {
+		t.Fatalf("storeDir = %q, want %q", got, want)
+	}
+}
+
+func TestResolveStoreDirStoreAndAccountConflict(t *testing.T) {
+	_, err := resolveStoreDir(&rootFlags{storeDir: "/tmp/wacli", account: "work"})
+	if err == nil || !strings.Contains(err.Error(), "cannot be combined") {
+		t.Fatalf("resolveStoreDir error = %v, want conflict", err)
+	}
+}
+
+func TestResolveStoreDirEnvBeatsDefaultAccount(t *testing.T) {
+	isolateAccountConfigHome(t)
+	cfgPath := config.DefaultConfigPath()
+	cfg := &config.AccountsConfig{
+		DefaultAccount: "work",
+		Accounts: map[string]config.AccountEntry{
+			"work": {Store: "accounts/work"},
+		},
+	}
+	if err := config.SaveAccountsConfig(cfgPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	envStore := filepath.Join(t.TempDir(), "env-store")
+	t.Setenv(config.EnvStoreDir, envStore)
+
+	got, err := resolveStoreDir(&rootFlags{})
+	if err != nil {
+		t.Fatalf("resolveStoreDir: %v", err)
+	}
+	if got != envStore {
+		t.Fatalf("storeDir = %q, want %q", got, envStore)
+	}
+}
+
+func isolateAccountConfigHome(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	t.Setenv(config.EnvStoreDir, "")
 }

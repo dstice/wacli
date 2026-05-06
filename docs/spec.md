@@ -137,6 +137,7 @@ Fallback:
 Global flags:
 
 - `--store DIR` (default: XDG state dir on Linux, `~/.wacli` elsewhere)
+- `--account NAME` (named account from `config.yaml`; mutually exclusive with `--store`)
 - `--json` (default: human text)
 - `--full` (disable table truncation; non-TTY output keeps full IDs)
 - `--timeout DURATION` (non-sync commands; e.g. `5m`)
@@ -153,6 +154,19 @@ Global flags:
 - `wacli auth [--follow] [--idle-exit 30s]`
 - `wacli auth status`
 - `wacli auth logout`
+
+### Accounts
+
+- `wacli accounts list`
+- `wacli accounts add NAME [--no-auth]`
+- `wacli accounts use NAME`
+- `wacli accounts show NAME`
+- `wacli accounts remove NAME`
+
+Named accounts resolve to isolated store directories. Account config lives in
+`<base>/config.yaml`; relative account store paths resolve from that config
+directory. `--store` remains the direct manual-store escape hatch and cannot be
+combined with `--account`.
 
 ### Sync
 

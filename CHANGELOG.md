@@ -2,6 +2,18 @@
 
 ## 0.7.1 - Unreleased
 
+### Added
+
+- Accounts: add first-class named WhatsApp accounts with isolated stores, `--account NAME`, and `wacli accounts list/add/use/show/remove`.
+
+### Fixed
+
+- Store: fix migration of legacy databases whose `groups` table existed before group hierarchy columns were introduced.
+
+### Docs
+
+- Docs: add a dedicated accounts page covering YAML config, store selection precedence, and multi-account usage.
+
 ## 0.7.0 - 2026-05-06
 
 ### Added

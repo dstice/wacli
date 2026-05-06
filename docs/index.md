@@ -21,6 +21,7 @@ A script-friendly WhatsApp CLI built on [`whatsmeow`](https://github.com/tulir/w
 ## Pick your path
 
 - **Trying it.** Read [Install](install.md), then [Quickstart](quickstart.md). Pair, sync, and send your first message in under five minutes.
+- **Using multiple WhatsApp accounts.** Read [Accounts](accounts.md) for named account stores and `--account`.
 - **Searching old chats.** Read [Sync](sync.md) for the sync model and [History](history.md) for coverage planning and on-demand backfill.
 - **Managing chat state.** Read [Chats](chats.md) for archive, pin, mute, and read/unread commands.
 - **Managing local storage.** Read [Store](store.md) for stats, dry-run cleanup, and local-only pruning.

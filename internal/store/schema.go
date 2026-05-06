@@ -35,9 +35,6 @@ const coreSchemaSQL = `
 		left_at INTEGER,
 		updated_at INTEGER NOT NULL
 	);
-
-	CREATE INDEX IF NOT EXISTS idx_groups_linked_parent_jid ON groups(linked_parent_jid);
-
 	CREATE TABLE IF NOT EXISTS group_participants (
 		group_jid TEXT NOT NULL,
 		user_jid TEXT NOT NULL,
