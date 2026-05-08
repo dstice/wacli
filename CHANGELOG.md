@@ -11,6 +11,7 @@
 
 - CI: make the Homebrew tap handoff use `openclaw/wacli` and skip gracefully when the tap token is missing. (#216 - thanks @dinakars777)
 - Maintainers: remove the stale personal CODEOWNERS rule after the OpenClaw move. (#218 - thanks @dinakars777)
+- Release: update GoReleaser archive config to the current v2 schema so release-config checks stay green.
 
 ### Fixed
 
