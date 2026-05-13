@@ -9,6 +9,11 @@
 ### Fixed
 
 - Messages: preserve WhatsApp Business buttons and list options in JSON output. (#226 - thanks @ignaciovarela)
+- Send: warm up recipients before send to reduce privacy-token failures. (#234 - thanks @AndroidPoet)
+
+### Docs
+
+- Docs: document named accounts in the quickstart and surface accounts, channels, store, and integrations pages in the docs navigation. (#235 - thanks @mamarchk)
 
 ## 0.8.1 - 2026-05-08
 
