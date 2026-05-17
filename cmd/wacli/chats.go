@@ -161,10 +161,11 @@ func resolveStoredChats(ctx context.Context, a *app.App, chats []store.Chat) []s
 	if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err != nil {
 		return chats
 	}
-	if err := a.OpenWA(); err != nil {
+	resolver, err := a.LocalResolver()
+	if err != nil {
 		return chats
 	}
-	return resolveStoredChatsWith(ctx, a.WA(), chats)
+	return resolveStoredChatsWith(ctx, resolver, chats)
 }
 
 func chatsNeedLIDResolution(chats []store.Chat) bool {
@@ -284,18 +285,15 @@ func mappedChatJIDs(ctx context.Context, a *app.App, rawJID string) []string {
 	if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err != nil {
 		return jidStrings(jids)
 	}
-	if err := a.OpenWA(); err != nil {
-		return jidStrings(jids)
-	}
-	client := a.WA()
-	if client == nil {
+	resolver, err := a.LocalResolver()
+	if err != nil {
 		return jidStrings(jids)
 	}
 	switch jid.Server {
 	case types.DefaultUserServer:
-		jids = append(jids, client.ResolvePNToLID(ctx, jid))
+		jids = append(jids, resolver.ResolvePNToLID(ctx, jid))
 	case types.HiddenUserServer:
-		jids = append(jids, client.ResolveLIDToPN(ctx, jid))
+		jids = append(jids, resolver.ResolveLIDToPN(ctx, jid))
 	}
 	return jidStrings(jids)
 }

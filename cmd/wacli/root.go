@@ -113,6 +113,7 @@ func newApp(ctx context.Context, flags *rootFlags, needLock bool, allowUnauthed 
 		JSON:          flags.asJSON,
 		Events:        out.NewEventWriter(os.Stderr, flags.events),
 		AllowUnauthed: allowUnauthed,
+		ReadOnly:      flags.isReadOnly(),
 	})
 	if err != nil {
 		if lk != nil {

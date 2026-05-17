@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/openclaw/wacli/internal/app"
 	"github.com/openclaw/wacli/internal/store"
 	"github.com/spf13/cobra"
 	"go.mau.fi/whatsmeow/types"
@@ -528,9 +530,63 @@ func TestResolveMessageSenderNamesUsesLIDMappingAndContacts(t *testing.T) {
 	}
 }
 
+func TestMessageChatJIDFilterUsesReadOnlySessionLIDMap(t *testing.T) {
+	storeDir := t.TempDir()
+	writer, err := app.New(app.Options{StoreDir: storeDir})
+	if err != nil {
+		t.Fatalf("New writer: %v", err)
+	}
+	writer.Close()
+	writeTestSessionLIDMap(t, filepath.Join(storeDir, "session.db"), "999123456789", "15551234567")
+
+	reader, err := app.New(app.Options{StoreDir: storeDir, ReadOnly: true})
+	if err != nil {
+		t.Fatalf("New read-only: %v", err)
+	}
+	defer reader.Close()
+
+	got, err := messageChatJIDFilter(context.Background(), reader, "15551234567@s.whatsapp.net")
+	if err != nil {
+		t.Fatalf("messageChatJIDFilter: %v", err)
+	}
+	want := "15551234567@s.whatsapp.net,999123456789@lid"
+	if strings.Join(got, ",") != want {
+		t.Fatalf("jids = %v, want %s", got, want)
+	}
+	assertNoSQLiteSidecars(t, filepath.Join(storeDir, "session.db"))
+}
+
 type fakeLIDResolver struct {
 	lid types.JID
 	pn  types.JID
+}
+
+func writeTestSessionLIDMap(t *testing.T, path, lid, pn string) {
+	t.Helper()
+	db, err := sql.Open("sqlite3", path)
+	if err != nil {
+		t.Fatalf("Open session sqlite: %v", err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`
+		CREATE TABLE whatsmeow_lid_map (lid TEXT PRIMARY KEY, pn TEXT UNIQUE NOT NULL);
+		INSERT INTO whatsmeow_lid_map (lid, pn) VALUES (?, ?);
+	`, lid, pn)
+	if err != nil {
+		t.Fatalf("seed session LID map: %v", err)
+	}
+}
+
+func assertNoSQLiteSidecars(t *testing.T, path string) {
+	t.Helper()
+	for _, suffix := range []string{"-journal", "-wal", "-shm"} {
+		sidecar := path + suffix
+		if _, err := os.Stat(sidecar); err == nil {
+			t.Fatalf("unexpected SQLite sidecar %s", sidecar)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", sidecar, err)
+		}
+	}
 }
 
 func (f fakeLIDResolver) ResolveLIDToPN(ctx context.Context, jid types.JID) types.JID {

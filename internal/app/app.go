@@ -93,28 +93,38 @@ type Options struct {
 	JSON          bool
 	Events        *out.EventWriter
 	AllowUnauthed bool
+	ReadOnly      bool
 }
 
 type App struct {
-	opts     Options
-	waMu     sync.Mutex
-	wa       WAClient
-	db       *store.DB
-	statusMu sync.Mutex
-	status   *syncStatus
+	opts            Options
+	waMu            sync.Mutex
+	wa              WAClient
+	sessionResolver *readOnlySessionResolver
+	db              *store.DB
+	statusMu        sync.Mutex
+	status          *syncStatus
 }
 
 func New(opts Options) (*App, error) {
 	if opts.StoreDir == "" {
 		return nil, fmt.Errorf("store dir is required")
 	}
-	if err := fsutil.EnsurePrivateDir(opts.StoreDir); err != nil {
-		return nil, fmt.Errorf("create store dir: %w", err)
-	}
 
 	indexPath := filepath.Join(opts.StoreDir, "wacli.db")
 
-	db, err := store.Open(indexPath)
+	var (
+		db  *store.DB
+		err error
+	)
+	if opts.ReadOnly {
+		db, err = store.OpenReadOnly(indexPath)
+	} else {
+		if err := fsutil.EnsurePrivateDir(opts.StoreDir); err != nil {
+			return nil, fmt.Errorf("create store dir: %w", err)
+		}
+		db, err = store.Open(indexPath)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +137,9 @@ func (a *App) OpenWA() error {
 	defer a.waMu.Unlock()
 	if a.wa != nil {
 		return nil
+	}
+	if a.opts.ReadOnly {
+		return fmt.Errorf("read-only mode: command would open the WhatsApp session store")
 	}
 	sessionPath := filepath.Join(a.opts.StoreDir, "session.db")
 	cli, err := wa.New(wa.Options{
@@ -143,9 +156,13 @@ func (a *App) OpenWA() error {
 func (a *App) Close() {
 	a.waMu.Lock()
 	waClient := a.wa
+	sessionResolver := a.sessionResolver
 	a.waMu.Unlock()
 	if waClient != nil {
 		waClient.Close()
+	}
+	if sessionResolver != nil {
+		_ = sessionResolver.Close()
 	}
 	if a.db != nil {
 		_ = a.db.Close()
@@ -157,6 +174,9 @@ func (a *App) EnsureAuthed() error {
 		return err
 	}
 	if a.wa.IsAuthed() {
+		if a.opts.ReadOnly {
+			return nil
+		}
 		return a.migrateHistoricalLIDs(context.Background())
 	}
 	return fmt.Errorf("not authenticated; run `wacli auth`")
@@ -167,6 +187,34 @@ func (a *App) WA() WAClient {
 	defer a.waMu.Unlock()
 	return a.wa
 }
+
+type LocalResolver interface {
+	ResolveChatName(context.Context, types.JID, string) string
+	ResolveLIDToPN(context.Context, types.JID) types.JID
+	ResolvePNToLID(context.Context, types.JID) types.JID
+}
+
+func (a *App) LocalResolver() (LocalResolver, error) {
+	if !a.opts.ReadOnly {
+		if err := a.OpenWA(); err != nil {
+			return nil, err
+		}
+		return a.WA(), nil
+	}
+
+	a.waMu.Lock()
+	defer a.waMu.Unlock()
+	if a.sessionResolver != nil {
+		return a.sessionResolver, nil
+	}
+	resolver, err := openReadOnlySessionResolver(filepath.Join(a.opts.StoreDir, "session.db"))
+	if err != nil {
+		return nil, err
+	}
+	a.sessionResolver = resolver
+	return resolver, nil
+}
+
 func (a *App) DB() *store.DB { return a.db }
 func (a *App) Events() *out.EventWriter {
 	return a.opts.Events
@@ -174,6 +222,7 @@ func (a *App) Events() *out.EventWriter {
 func (a *App) StoreDir() string    { return a.opts.StoreDir }
 func (a *App) Version() string     { return a.opts.Version }
 func (a *App) AllowUnauthed() bool { return a.opts.AllowUnauthed }
+func (a *App) ReadOnly() bool      { return a.opts.ReadOnly }
 
 func (a *App) Connect(ctx context.Context, allowQR bool, qrWriter func(string)) error {
 	if err := a.OpenWA(); err != nil {

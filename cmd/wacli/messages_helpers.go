@@ -27,18 +27,15 @@ func messageChatJIDFilter(ctx context.Context, a *app.App, chat string) ([]strin
 	if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err != nil {
 		return jidStrings(jids), nil
 	}
-	if err := a.OpenWA(); err != nil {
-		return jidStrings(jids), nil
-	}
-	client := a.WA()
-	if client == nil {
+	resolver, err := a.LocalResolver()
+	if err != nil {
 		return jidStrings(jids), nil
 	}
 	switch jid.Server {
 	case types.DefaultUserServer:
-		jids = append(jids, canonicalMessageFilterJID(client.ResolvePNToLID(ctx, jid)))
+		jids = append(jids, canonicalMessageFilterJID(resolver.ResolvePNToLID(ctx, jid)))
 	case types.HiddenUserServer:
-		jids = append(jids, canonicalMessageFilterJID(client.ResolveLIDToPN(ctx, jid)))
+		jids = append(jids, canonicalMessageFilterJID(resolver.ResolveLIDToPN(ctx, jid)))
 	}
 	return jidStrings(jids), nil
 }
@@ -78,10 +75,11 @@ func resolveMessageSenderNames(ctx context.Context, a *app.App, msgs []store.Mes
 	if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err != nil {
 		return msgs
 	}
-	if err := a.OpenWA(); err != nil {
+	resolver, err := a.LocalResolver()
+	if err != nil {
 		return msgs
 	}
-	return resolveMessageSenderNamesWith(ctx, a.DB(), a.WA(), msgs)
+	return resolveMessageSenderNamesWith(ctx, a.DB(), resolver, msgs)
 }
 
 func messagesNeedSenderResolution(msgs []store.Message) bool {

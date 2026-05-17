@@ -316,16 +316,14 @@ func primaryPollChatJID(ctx context.Context, a *app.App, jid types.JID) string {
 func pollChatJIDCandidates(ctx context.Context, a *app.App, jid types.JID) []string {
 	jids := make([]types.JID, 0, 3)
 	if a != nil {
-		if a.WA() == nil {
-			if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err == nil {
-				_ = a.OpenWA()
-			}
-		}
-		if client := a.WA(); client != nil {
-			resolved := client.ResolveLIDToPN(ctx, jid)
-			jids = append(jids, canonicalMessageFilterJID(resolved))
-			if resolved.Server == types.DefaultUserServer {
-				jids = append(jids, canonicalMessageFilterJID(client.ResolvePNToLID(ctx, resolved)))
+		if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err == nil {
+			resolver, _ := a.LocalResolver()
+			if resolver != nil {
+				resolved := resolver.ResolveLIDToPN(ctx, jid)
+				jids = append(jids, canonicalMessageFilterJID(resolved))
+				if resolved.Server == types.DefaultUserServer {
+					jids = append(jids, canonicalMessageFilterJID(resolver.ResolvePNToLID(ctx, resolved)))
+				}
 			}
 		}
 	}
@@ -552,10 +550,17 @@ func resolveVoterName(a *app.App, ctx context.Context, jid string) string {
 	if err != nil {
 		return ""
 	}
-	if a == nil || a.WA() == nil {
+	if a == nil {
 		return ""
 	}
-	return a.WA().ResolveChatName(ctx, parsed, "")
+	if _, err := os.Stat(filepath.Join(a.StoreDir(), "session.db")); err != nil {
+		return ""
+	}
+	resolver, err := a.LocalResolver()
+	if err != nil {
+		return ""
+	}
+	return resolver.ResolveChatName(ctx, parsed, "")
 }
 
 func renderPollShow(w *os.File, a *app.App, ctx context.Context, poll store.Poll, votes []store.PollVote, aggregates map[string]int) {

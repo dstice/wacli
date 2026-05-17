@@ -77,3 +77,39 @@ func TestEnsureAuthedLeavesUnresolvedHistoricalLIDs(t *testing.T) {
 		t.Fatalf("HistoricalLIDJIDs = %#v, want %q", lids, lid.String())
 	}
 }
+
+func TestEnsureAuthedSkipsHistoricalLIDMigrationReadOnly(t *testing.T) {
+	storeDir := t.TempDir()
+	writer, err := New(Options{StoreDir: storeDir})
+	if err != nil {
+		t.Fatalf("New writer: %v", err)
+	}
+
+	lid := types.JID{User: "999123456789", Device: 42, Server: types.HiddenUserServer}
+	pn := types.JID{User: "15551234567", Server: types.DefaultUserServer}
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := writer.db.UpsertChat(lid.String(), "unknown", lid.String(), base); err != nil {
+		t.Fatalf("UpsertChat lid: %v", err)
+	}
+	writer.Close()
+
+	reader, err := New(Options{StoreDir: storeDir, ReadOnly: true})
+	if err != nil {
+		t.Fatalf("New read-only: %v", err)
+	}
+	defer reader.Close()
+	f := newFakeWA()
+	f.lids[lid.ToNonAD()] = pn
+	reader.wa = f
+
+	if err := reader.EnsureAuthed(); err != nil {
+		t.Fatalf("EnsureAuthed read-only: %v", err)
+	}
+	lids, err := reader.db.HistoricalLIDJIDs()
+	if err != nil {
+		t.Fatalf("HistoricalLIDJIDs: %v", err)
+	}
+	if len(lids) != 1 || lids[0] != lid.String() {
+		t.Fatalf("HistoricalLIDJIDs = %#v, want %q", lids, lid.String())
+	}
+}
