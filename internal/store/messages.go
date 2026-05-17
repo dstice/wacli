@@ -69,58 +69,45 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 		p.FileEncSHA256 = nil
 		p.FileLength = 0
 	}
-	var buttonsJSON interface{}
+	var buttonsJSON sql.NullString
 	if len(p.Buttons) > 0 {
 		if b, err := json.Marshal(p.Buttons); err == nil {
-			buttonsJSON = string(b)
+			buttonsJSON = sql.NullString{String: string(b), Valid: true}
 		}
 	}
 	editedTS := int64(0)
 	if p.Edited {
 		editedTS = unix(p.Timestamp)
 	}
-	_, err := d.sql.Exec(`
-		INSERT INTO messages(
-			chat_jid, chat_name, msg_id, sender_jid, sender_name, ts, from_me, text, display_text,
-			is_forwarded, forwarding_score, reaction_to_id, reaction_emoji,
-			media_type, media_caption, filename, mime_type, direct_path,
-			media_key, file_sha256, file_enc_sha256, file_length, revoked, deleted_for_me, edited, edited_ts, buttons
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(chat_jid, msg_id) DO UPDATE SET
-			chat_name=COALESCE(NULLIF(excluded.chat_name,''), messages.chat_name),
-			sender_jid=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.sender_jid ELSE excluded.sender_jid END,
-			sender_name=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.sender_name ELSE COALESCE(NULLIF(excluded.sender_name,''), messages.sender_name) END,
-			ts=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 THEN messages.ts WHEN excluded.edited != 0 THEN messages.ts WHEN messages.edited != 0 AND excluded.edited = 0 THEN excluded.ts WHEN excluded.ts < messages.ts AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.ts ELSE excluded.ts END,
-			from_me=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR (((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND excluded.revoked = 0 AND excluded.deleted_for_me = 0) THEN messages.from_me ELSE excluded.from_me END,
-			text=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.text ELSE excluded.text END,
-			display_text=CASE WHEN messages.deleted_for_me != 0 OR excluded.deleted_for_me != 0 THEN ? WHEN messages.revoked != 0 OR excluded.revoked != 0 THEN ? WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.display_text WHEN excluded.display_text IS NOT NULL AND excluded.display_text != '' THEN excluded.display_text ELSE messages.display_text END,
-			is_forwarded=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.is_forwarded ELSE excluded.is_forwarded END,
-			forwarding_score=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.forwarding_score ELSE excluded.forwarding_score END,
-			reaction_to_id=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.reaction_to_id ELSE COALESCE(NULLIF(excluded.reaction_to_id,''), messages.reaction_to_id) END,
-			reaction_emoji=CASE WHEN ((messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts)) AND messages.revoked = 0 AND messages.deleted_for_me = 0 AND excluded.revoked = 0 AND excluded.deleted_for_me = 0 THEN messages.reaction_emoji ELSE COALESCE(NULLIF(excluded.reaction_emoji,''), messages.reaction_emoji) END,
-			media_type=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.media_type ELSE excluded.media_type END,
-			media_caption=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.media_caption ELSE excluded.media_caption END,
-			filename=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.filename ELSE COALESCE(NULLIF(excluded.filename,''), messages.filename) END,
-			mime_type=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.mime_type ELSE COALESCE(NULLIF(excluded.mime_type,''), messages.mime_type) END,
-			direct_path=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.direct_path ELSE COALESCE(NULLIF(excluded.direct_path,''), messages.direct_path) END,
-			media_key=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.media_key WHEN excluded.media_key IS NOT NULL AND length(excluded.media_key)>0 THEN excluded.media_key ELSE messages.media_key END,
-			file_sha256=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.file_sha256 WHEN excluded.file_sha256 IS NOT NULL AND length(excluded.file_sha256)>0 THEN excluded.file_sha256 ELSE messages.file_sha256 END,
-			file_enc_sha256=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.file_enc_sha256 WHEN excluded.file_enc_sha256 IS NOT NULL AND length(excluded.file_enc_sha256)>0 THEN excluded.file_enc_sha256 ELSE messages.file_enc_sha256 END,
-			file_length=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.file_length WHEN excluded.file_length>0 THEN excluded.file_length ELSE messages.file_length END,
-			local_path=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL ELSE messages.local_path END,
-			downloaded_at=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL ELSE messages.downloaded_at END,
-			revoked=CASE WHEN excluded.revoked != 0 THEN 1 ELSE messages.revoked END,
-			deleted_for_me=CASE WHEN excluded.deleted_for_me != 0 THEN 1 ELSE messages.deleted_for_me END,
-			edited=CASE WHEN excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN 0 WHEN excluded.edited != 0 THEN 1 WHEN messages.edited != 0 THEN messages.edited ELSE 0 END,
-			edited_ts=CASE WHEN excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN 0 WHEN excluded.edited != 0 AND (messages.edited = 0 OR excluded.edited_ts > messages.edited_ts) THEN excluded.edited_ts WHEN messages.edited != 0 THEN messages.edited_ts ELSE 0 END,
-			buttons=CASE WHEN messages.revoked != 0 OR messages.deleted_for_me != 0 OR excluded.revoked != 0 OR excluded.deleted_for_me != 0 THEN NULL WHEN (messages.edited != 0 AND excluded.edited = 0) OR (messages.edited != 0 AND excluded.edited != 0 AND excluded.edited_ts < messages.edited_ts) OR (messages.edited = 0 AND excluded.edited = 0 AND excluded.ts < messages.ts) THEN messages.buttons ELSE excluded.buttons END
-	`, p.ChatJID, nullIfEmpty(p.ChatName), p.MsgID, nullIfEmpty(p.SenderJID), nullIfEmpty(p.SenderName), unix(p.Timestamp), boolToInt(p.FromMe), nullIfEmpty(p.Text), nullIfEmpty(p.DisplayText),
-		boolToInt(p.IsForwarded), int64(p.ForwardingScore), nullIfEmpty(p.ReactionToID), nullIfEmpty(p.ReactionEmoji),
-		nullIfEmpty(p.MediaType), nullIfEmpty(p.MediaCaption), nullIfEmpty(p.Filename), nullIfEmpty(p.MimeType), nullIfEmpty(p.DirectPath),
-		p.MediaKey, p.FileSHA256, p.FileEncSHA256, int64(p.FileLength), boolToInt(p.Revoked), boolToInt(p.DeletedForMe), boolToInt(p.Edited), editedTS, buttonsJSON,
-		DeletedForMeMessageDisplayText, DeletedMessageDisplayText,
-	)
-	return err
+	return d.q.UpsertMessage(storeCtx(), storedb.UpsertMessageParams{
+		ChatJid:         p.ChatJID,
+		ChatName:        nullString(p.ChatName),
+		MsgID:           p.MsgID,
+		SenderJid:       nullString(p.SenderJID),
+		SenderName:      nullString(p.SenderName),
+		Ts:              unix(p.Timestamp),
+		FromMe:          boolToInt64(p.FromMe),
+		Text:            nullString(p.Text),
+		DisplayText:     nullString(p.DisplayText),
+		IsForwarded:     boolToInt64(p.IsForwarded),
+		ForwardingScore: int64(p.ForwardingScore),
+		ReactionToID:    nullString(p.ReactionToID),
+		ReactionEmoji:   nullString(p.ReactionEmoji),
+		MediaType:       nullString(p.MediaType),
+		MediaCaption:    nullString(p.MediaCaption),
+		Filename:        nullString(p.Filename),
+		MimeType:        nullString(p.MimeType),
+		DirectPath:      nullString(p.DirectPath),
+		MediaKey:        p.MediaKey,
+		FileSha256:      p.FileSHA256,
+		FileEncSha256:   p.FileEncSHA256,
+		FileLength:      sqlNullInt64(int64(p.FileLength)),
+		Revoked:         boolToInt64(p.Revoked),
+		DeletedForMe:    boolToInt64(p.DeletedForMe),
+		Edited:          boolToInt64(p.Edited),
+		EditedTs:        editedTS,
+		Buttons:         buttonsJSON,
+	})
 }
 
 func (d *DB) MarkMessageRevoked(chatJID, msgID string) error {
